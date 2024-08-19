@@ -1,11 +1,17 @@
+use std::fs::File;
+
 use header::Header;
 
+use crate::table::save::ExTableBytes;
+
 pub mod header;
-pub mod save;
+pub mod dump;
 pub mod load;
 pub mod tables;
 
-pub struct ExDatabase {
+pub struct ExDatabase<T> {
     path: String,
-    header: Header
+    header: Header,
+    file: File,
+    items: Vec<T>
 }
