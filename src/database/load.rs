@@ -1,4 +1,4 @@
-use std::{error::Error, fs::File};
+use std::{error::Error, fs::{remove_file, File}, path::PathBuf};
 
 use crate::table::save::ExTableBytes;
 
@@ -37,8 +37,13 @@ impl <T>LoadExDatabase<T> for ExDatabase<T> {
 
 #[test]
 pub fn test_load() {
+    const TEST_DB: &str = "test.exdb";
+
     use crate::database::header::MAGICAL_NUMBER;
 
-    let database: ExDatabase<String> = ExDatabase::load("test.exdb").unwrap();
+    let database: ExDatabase<String> = ExDatabase::load(TEST_DB).unwrap();
+
+    remove_file(TEST_DB).unwrap();
+
     assert_eq!(database.header.magic_number, MAGICAL_NUMBER)
 }
