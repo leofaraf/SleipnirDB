@@ -1,17 +1,13 @@
-use std::fs::File;
+use std::{path::PathBuf, sync::{Arc, Mutex}};
 
-use header::Header;
+use tables::ExDatabaseEntry;
 
-use crate::table::save::ExTableBytes;
-
-pub mod header;
+// pub mod header;
 pub mod dump;
 pub mod load;
 pub mod tables;
 
-pub struct ExDatabase<T> {
-    path: String,
-    header: Header,
-    file: File,
-    items: Vec<T>
+pub struct ExDatabase {
+    path: PathBuf,
+    items: Vec<ExDatabaseEntry>
 }

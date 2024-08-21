@@ -1,49 +1,44 @@
-use std::{error::Error, fs::{remove_file, File}, path::PathBuf};
+use std::{error::Error, fs::{create_dir_all, read_dir, remove_dir, remove_file, File}, path::PathBuf};
 
-use crate::table::save::ExTableBytes;
+use super::{tables::ExDatabaseEntry, ExDatabase};
 
-use super::{header::Header, ExDatabase};
-
-pub trait LoadExDatabase<T> {
-    fn load(path: impl Into<String>) -> Result<ExDatabase<T>, Box<dyn Error>>;
+pub trait LoadExDatabase {
+    fn load(path: impl Into<String>) -> Result<ExDatabase, Box<dyn Error>>;
 }
 
-impl <T>LoadExDatabase<T> for ExDatabase<T> {
-    fn load(path: impl Into<String>) -> Result<ExDatabase<T>, Box<dyn Error>> {
+impl LoadExDatabase for ExDatabase {
+    fn load(path: impl Into<String>) -> Result<ExDatabase, Box<dyn Error>> {
         let path: String = path.into();
+        let path: PathBuf = PathBuf::from(path);
 
-        let mut file = match File::open(path.clone()) {
-            Ok(file) => file,
-            Err(_) => File::create(path.clone())?,
-        };
+        create_dir_all(&path)?;
 
-        let header = match Header::read(&mut file) {
-            Ok(header) => header,
-            Err(_) => {
-                let header = Header::new(0);
-                header.write(&mut file)?;
-                header
-            },
-        };
+        let mut tables = vec![];
+
+        for dir_entry in read_dir(&path)? {
+            let dir_entry = dir_entry?;
+
+            if dir_entry.file_type()?.is_file() {
+                tables.push(
+                    ExDatabaseEntry(path.to_path_buf())
+                );
+            }
+        }
 
         Ok(ExDatabase { 
-            path: path.into(),
-            header,
-            file,
-            items: vec![]
+            path,
+            items: tables
         })
     }
 }
 
 #[test]
 pub fn test_load() {
-    const TEST_DB: &str = "test.exdb";
+    const TEST_DB: &str = "test/test_load";
 
-    use crate::database::header::MAGICAL_NUMBER;
+    let database: ExDatabase = ExDatabase::load(TEST_DB).unwrap();
 
-    let database: ExDatabase<String> = ExDatabase::load(TEST_DB).unwrap();
+    remove_dir(TEST_DB).unwrap();
 
-    remove_file(TEST_DB).unwrap();
-
-    assert_eq!(database.header.magic_number, MAGICAL_NUMBER)
+    assert_eq!(database.path, PathBuf::from(TEST_DB))
 }
