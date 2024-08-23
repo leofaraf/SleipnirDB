@@ -1,39 +1,40 @@
-use std::{borrow::Cow, collections::HashSet, error::Error, ffi::OsStr, fs::{create_dir_all, remove_dir, remove_file, File}, hash::{self, Hash}, io::Read, path::PathBuf};
+use std::{borrow::Cow, collections::HashSet, error::Error, ffi::OsStr, fs::{create_dir_all, remove_dir, remove_file, File}, hash::{self, Hash}, io::Read, path::PathBuf, sync::Arc};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::table::{ExTable, save::DumpExTable};
+use crate::{database::load::LoadExDatabase, table::{save::DumpExTable, ExTable, EX_TABLE_EXTENSION}};
 
-pub struct ExDatabaseEntry(pub PathBuf);
+use super::ExDatabase;
 
-pub trait ExDatabaseTablesUtils {
-    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&self) -> Result<ExTable<T>, Box<dyn Error>>;
+#[derive(Debug)]
+pub struct ExDatabaseEntry<'a, 'b> {
+    pub database: Arc<ExDatabase<'a, 'b>>,
+    pub label: String
+}
+
+pub trait ExDatabaseTablesUtils<'a, 'b> {
+    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&'b self) -> Result<ExTable<'a, 'b, T>, Box<dyn Error>>;
     fn remove(&self);
 }
 
-impl ExDatabaseTablesUtils for ExDatabaseEntry {
-    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&self) -> Result<ExTable<T>, Box<dyn Error>> {
-        let label = match self.0.file_name() {
-            Some(file_name) => file_name.to_string_lossy().to_string(),
-            None => "".to_string(),
-        };
-
-        let save_path = self.0.clone();
+impl <'a, 'b>ExDatabaseTablesUtils<'a, 'b> for ExDatabaseEntry<'a, 'b> {
+    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&'b self) -> Result<ExTable<'a, 'b, T>, Box<dyn Error>> {
+        let save_path = self.database.path.join(self.label.clone() + EX_TABLE_EXTENSION);
         
-        match self.0.exists() {
+        match save_path.exists() {
             true => {
-                let mut file = File::open(&self.0)?;
+                let mut file = File::open(save_path)?;
 
                 let mut data: Vec<u8> = vec![];
                 file.read_to_end(&mut data)?;
-                ExTable::deserialize_items(data, label, save_path)
+                ExTable::deserialize_items(data, self.label.clone(), self.database.clone())
             },
             false => {
                 let items: HashSet<T> = HashSet::new();
 
                 Ok(ExTable {
-                    label,
-                    save_path,
+                    label: self.label.clone(),
+                    database: self.database.clone(),
                     items
                 })
             },
@@ -41,23 +42,28 @@ impl ExDatabaseTablesUtils for ExDatabaseEntry {
     }
 
     fn remove(&self) {
-        remove_file(&self.0).unwrap();
+        remove_file(self.database.path.join(self.label.clone() + EX_TABLE_EXTENSION)).unwrap();
     }
 }
 
 #[test]
 fn load_table_test() {
-    let dir = PathBuf::from("test/load_table_test/");
-    create_dir_all(&dir).unwrap();
-    let entry = ExDatabaseEntry(dir.join("new.exdb"));
+    const TEST_DB: &str = "test/load_table_test/";
+
+    let database = ExDatabase::load(TEST_DB).unwrap();
+
+    let entry = ExDatabaseEntry {
+        database,
+        label: "new".into(),
+    };
     let table: ExTable<String> = entry.load().unwrap();
     table.dump().unwrap();
     println!("table: {:?}", table);
     
     let table: ExTable<String> = entry.load().unwrap();
     
-    remove_file(entry.0).unwrap();
-    remove_dir(dir).unwrap();
+    remove_file(TEST_DB.to_string() + "new" + EX_TABLE_EXTENSION).unwrap();
+    remove_dir(TEST_DB).unwrap();
 
-    assert_eq!(table.label, "new.exdb")
+    assert_eq!(table.label, "new")
 }
