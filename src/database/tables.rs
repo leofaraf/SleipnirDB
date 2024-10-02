@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, error::Error, ffi::OsStr, fs::{create_dir_all, remove_dir, remove_file, File}, hash::{self, Hash}, io::Read, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, collections::HashSet, error::Error, ffi::OsStr, fs::{create_dir_all, remove_dir, remove_file, File}, hash::{self, Hash}, io::Read, path::PathBuf, sync::{Arc, Mutex}};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -7,18 +7,18 @@ use crate::{database::load::LoadExDatabase, table::{save::DumpExTable, ExTable, 
 use super::ExDatabase;
 
 #[derive(Debug)]
-pub struct ExDatabaseEntry<'a, 'b> {
-    pub database: Arc<ExDatabase<'a, 'b>>,
+pub struct ExDatabaseEntry {
+    pub database: Arc<ExDatabase>,
     pub label: String
 }
 
-pub trait ExDatabaseTablesUtils<'a, 'b> {
-    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&'b self) -> Result<ExTable<'a, 'b, T>, Box<dyn Error>>;
+pub trait ExDatabaseTablesUtils {
+    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&self) -> Result<ExTable<T>, Box<dyn Error>>;
     fn remove(&self);
 }
 
-impl <'a, 'b>ExDatabaseTablesUtils<'a, 'b> for ExDatabaseEntry<'a, 'b> {
-    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&'b self) -> Result<ExTable<'a, 'b, T>, Box<dyn Error>> {
+impl ExDatabaseTablesUtils for ExDatabaseEntry {
+    fn load<T: Serialize + DeserializeOwned + Eq + hash::Hash>(&self) -> Result<ExTable<T>, Box<dyn Error>> {
         let save_path = self.database.path.join(self.label.clone() + EX_TABLE_EXTENSION);
         
         match save_path.exists() {
@@ -35,7 +35,7 @@ impl <'a, 'b>ExDatabaseTablesUtils<'a, 'b> for ExDatabaseEntry<'a, 'b> {
                 Ok(ExTable {
                     label: self.label.clone(),
                     database: self.database.clone(),
-                    items
+                    items: Arc::new(Mutex::new(items))
                 })
             },
         }

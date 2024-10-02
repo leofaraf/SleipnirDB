@@ -15,9 +15,9 @@ pub mod save;
 pub const EX_TABLE_EXTENSION: &str = ".exdb";
 
 #[derive(Debug, Clone)]
-pub struct ExTable<'a, 'b, T: Eq + hash::Hash>
+pub struct ExTable<T: Eq + hash::Hash>
 {
-    pub database: Arc<ExDatabase<'a, 'b>>,
+    pub database: Arc<ExDatabase>,
     pub label: String,
-    pub items: HashSet<T>
+    pub items: Arc<Mutex<HashSet<T>>>
 }

@@ -4,12 +4,12 @@ use crate::table::EX_TABLE_EXTENSION;
 
 use super::{tables::ExDatabaseEntry, ExDatabase};
 
-pub trait LoadExDatabase<'a, 'b> {
-    fn load(path: impl Into<String>) -> Result<Arc<ExDatabase<'a, 'b>>, Box<dyn Error>>;
+pub trait LoadExDatabase {
+    fn load(path: impl Into<String>) -> Result<Arc<ExDatabase>, Box<dyn Error>>;
 }
 
-impl <'a, 'b>LoadExDatabase<'a, 'b> for ExDatabase<'a, 'b> {
-    fn load(path: impl Into<String>) -> Result<Arc<ExDatabase<'a, 'b>>, Box<dyn Error>> {
+impl LoadExDatabase for ExDatabase {
+    fn load(path: impl Into<String>) -> Result<Arc<ExDatabase>, Box<dyn Error>> {
         let path: String = path.into();
         let path: PathBuf = PathBuf::from(path);
 

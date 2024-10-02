@@ -9,13 +9,13 @@ pub mod load;
 pub mod tables;
 
 #[derive(Debug)]
-pub struct ExDatabase<'a, 'b> {
+pub struct ExDatabase {
     pub path: PathBuf,
-    pub table_labels: Arc<Mutex<Vec<ExDatabaseEntry<'a, 'b>>>>
+    pub table_labels: Arc<Mutex<Vec<ExDatabaseEntry>>>
 }
 
-impl <'a, 'b>ExDatabase<'a, 'b> {
-    fn add_table_label(&self, entry: ExDatabaseEntry<'a, 'b>) {
+impl ExDatabase {
+    fn add_table_label(&self, entry: ExDatabaseEntry) {
         let mut lock = self.table_labels.lock().unwrap();
         lock.push(entry);
     }
