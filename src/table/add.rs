@@ -2,18 +2,19 @@ use std::{collections::{hash_set, HashSet}, error::Error, hash, ops::DerefMut, s
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{database::ExDatabase, table};
+use crate::{database::ExDatabase, error, table};
 
 use super::ExTable;
 
 pub trait AddExTable<T>
 where T: Eq + hash::Hash + Serialize + DeserializeOwned {
-    fn add_item(&mut self, item: T) -> bool;
+    fn add_item(&mut self, item: T) -> Result<(), error::DatabaseError>;
 }
 
 impl <T: Eq + hash::Hash + Serialize + DeserializeOwned>AddExTable<T> for ExTable<T> {
-    fn add_item(&mut self, item: T) -> bool {
-        self.items.insert(item)
+    fn add_item(&mut self, item: T) -> Result<(), error::DatabaseError> {
+        self.items.insert(item);
+        Ok(())
     }
 }
 
