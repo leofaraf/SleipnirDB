@@ -1,1 +1,1 @@
-# ExodiusDB
+# Exodius DB
