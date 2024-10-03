@@ -35,7 +35,7 @@ impl ExDatabaseTablesUtils for ExDatabaseEntry {
                 Ok(ExTable {
                     label: self.label.clone(),
                     database: self.database.clone(),
-                    items: Arc::new(Mutex::new(items))
+                    items: items
                 })
             },
         }

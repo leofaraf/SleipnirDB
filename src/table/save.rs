@@ -24,11 +24,11 @@ impl <T: Eq + hash::Hash + Serialize + DeserializeOwned>DumpExTable<T> for ExTab
     }
 
     fn serialize_items(&self) -> Result<Vec<u8>, Box<dyn Error>> {
-        Ok(rmp_serde::to_vec(&*self.items)?)
+        Ok(rmp_serde::to_vec(&self.items)?)
     }
 
     fn deserialize_items(data: Vec<u8>, label: String, database: Arc<ExDatabase>) -> Result<ExTable<T>, Box<dyn Error>> {
         let items = rmp_serde::from_slice::<HashSet<T>>(&data)?;
-        Ok(ExTable { label, database, items: Arc::new(Mutex::new(items)) })
+        Ok(ExTable { label, database, items })
     }
 }

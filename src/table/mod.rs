@@ -19,5 +19,5 @@ pub struct ExTable<T: Eq + hash::Hash>
 {
     pub database: Arc<ExDatabase>,
     pub label: String,
-    pub items: Arc<Mutex<HashSet<T>>>
+    pub items: HashSet<T>
 }

@@ -13,8 +13,7 @@ where T: Eq + hash::Hash + Serialize + DeserializeOwned {
 
 impl <T: Eq + hash::Hash + Serialize + DeserializeOwned>ContainsExTable<T> for ExTable<T> {
     fn contains_item(&self, item: T) -> bool {
-        let lock = self.items.lock().unwrap();
-        lock.contains(&item)
+        self.items.contains(&item)
     }
 }
 
@@ -23,20 +22,16 @@ fn contains_item() {
     const TEST_DB: &str = "test/contains_table_test/";
     const TEST: &str = "test";
 
-    let table: ExTable<String> = ExTable {
+    let mut table: ExTable<String> = ExTable {
         database: ExDatabase {
             path: TEST_DB.into(),
             table_labels: Arc::new(Mutex::new(vec![])),
         }.into(),
-        label: "add_table".into(),
-        items: Arc::new(Mutex::new(HashSet::new())),
+        label: "contains_table".into(),
+        items: HashSet::new(),
     };
 
-    let mut lock = table.items.lock().unwrap();
-    lock.insert(TEST.into());
-
-    // Drop lock to use another lock in `contains_item` below.
-    drop(lock);
+    table.items.insert(TEST.into());
 
     assert_eq!(table.contains_item(TEST.into()), true)
 }
