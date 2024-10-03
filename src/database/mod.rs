@@ -1,17 +1,22 @@
-use std::fs::File;
+use std::{path::PathBuf, sync::{Arc, Mutex}};
 
-use header::Header;
+use serde::Serialize;
+use tables::ExDatabaseEntry;
 
-use crate::table::save::ExTableBytes;
-
-pub mod header;
+// pub mod header;
 pub mod dump;
 pub mod load;
 pub mod tables;
 
-pub struct ExDatabase<T> {
-    path: String,
-    header: Header,
-    file: File,
-    items: Vec<T>
+#[derive(Debug)]
+pub struct ExDatabase {
+    pub path: PathBuf,
+    pub table_labels: Arc<Mutex<Vec<ExDatabaseEntry>>>
+}
+
+impl ExDatabase {
+    fn add_table_label(&self, entry: ExDatabaseEntry) {
+        let mut lock = self.table_labels.lock().unwrap();
+        lock.push(entry);
+    }
 }
