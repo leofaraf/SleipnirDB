@@ -1,4 +1,4 @@
-use exdb::{database::{load::LoadExDatabase, tables::{ExDatabaseEntry, ExDatabaseTablesUtils}, ExDatabase}, table::{add::AddExTable, ExTable}};
+use sleipnirdb::{database::{load::LoadExDatabase, tables::{ExDatabaseEntry, ExDatabaseTablesUtils}, ExDatabase}, table::{add::AddExTable, ExTable}};
 
 const DATABASE_PATH: &str = "test/hello/";
 const DATABASE_LABEL: &str = "hello";
