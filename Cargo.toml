@@ -1,7 +1,10 @@
 [package]
 name = "sleipnirdb"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
+description = "SleipnirDB – Bridging Worlds at Lightning Speed."
+authors = ["Leon Farafonov <leofaraf@gmail.com>"]
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
