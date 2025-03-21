@@ -6,6 +6,14 @@ description = "SleipnirDB – Bridging Worlds at Lightning Speed."
 authors = ["Leon Farafonov <leofaraf@gmail.com>"]
 license = "MIT"
 
+[lib]
+name = "sleipnirdb"  # Имя библиотеки
+path = "src/lib.rs"
+
+[[bin]]
+name = "sleipnirdb_bin"  # Имя бинарного файла
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

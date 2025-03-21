@@ -1,4 +1,4 @@
-use std::{error::Error, fs::OpenOptions};
+use std::{error::Error, fs::{File, OpenOptions}, os::windows::fs::MetadataExt};
 
 use memmap2::{MmapMut, MmapOptions};
 
@@ -32,24 +32,25 @@ struct Document {
 
 struct SleipnirDB {
     mmap: MmapMut,
+    file: File,
     path: String,
 }
 
 impl SleipnirDB {
     fn embedded(path: &str) -> Result<Self, Box<dyn Error>> {
         let file = OpenOptions::new()
-            .write(true)
-            .append(true)
-            .create(true)
             .read(true)
+            .write(true)
+            .create(true)
             .open(path)?;
-        file.set_len(20)?;
+        let lenght = file.metadata().unwrap().file_size();
+        file.set_len(1000)?;
         
         let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
         
-        let lenght = mmap.len();
         let mut db = SleipnirDB { 
             mmap,
+            file,
             path: path.into(),
         };
         // init headers
@@ -80,11 +81,11 @@ impl SleipnirDB {
 }
 
 struct Connection<'a> {
-    database: &'a SleipnirDB
+    database: &'a mut SleipnirDB
 }
 
 impl <'a>Connection<'a> {
-    fn get_connection(database: &'a SleipnirDB) -> Self {
+    fn get_connection(database: &'a mut SleipnirDB) -> Self {
         Self {
             database,
         }
@@ -105,26 +106,85 @@ impl <'a>Connection<'a> {
         bytes.copy_from_slice(&self.database.mmap[COLLECTIONS_COUNT_OFFSET..COLLECTIONS_COUNT_OFFSET+4]);
         let collections_count = u32::from_le_bytes(bytes);
         println!("CollectionsCount: {}", collections_count);
+
+        let mut offset = COLLECTIONS_OFFSET;
+        for _ in 0..collections_count {
+            // Read collection name
+            let mut name_bytes = [0u8; 32];
+            name_bytes.copy_from_slice(&self.database.mmap[offset..offset+32]);
+            let name = String::from_utf8_lossy(&name_bytes).trim_end_matches('\0').to_string();
+
+            // Read document offset
+            let mut doc_offset_bytes = [0u8; 8];
+            doc_offset_bytes.copy_from_slice(&self.database.mmap[offset+32..offset+40]);
+            let document_offset = usize::from_le_bytes(doc_offset_bytes);
+
+            println!(" - Collection: '{}' (Document Offset: {})", name, document_offset);
+
+            offset += 40; // Move to the next collection
+        }
     }
 
-    fn insert_collection(&mut self, name: String) {}
+    fn insert_collection(&mut self, name: String) {
+        if name.len() > 32 {
+            println!("Collection name is too long!");
+            return;
+        }
+
+        // if self.database.mmap.len()
+
+        // Read current collections count
+        let mut bytes = [0u8; 4];
+        bytes.copy_from_slice(&self.database.mmap[COLLECTIONS_COUNT_OFFSET..COLLECTIONS_COUNT_OFFSET + 4]);
+        let mut collections_count = u32::from_le_bytes(bytes);
+
+        // Calculate new collection's offset
+        let new_collection_offset = COLLECTIONS_OFFSET + (collections_count as usize) * (32 + 8);
+
+        // Write collection name (padded to 32 bytes)
+        let mut name_bytes = [0u8; 32];
+        name_bytes[..name.len()].copy_from_slice(name.as_bytes());
+        self.database.mmap[new_collection_offset..new_collection_offset + 32].copy_from_slice(&name_bytes);
+
+        // Write initial document offset (set to 0, meaning empty)
+        let document_offset_bytes = 0usize.to_le_bytes();
+        self.database.mmap[new_collection_offset + 32..new_collection_offset + 40].copy_from_slice(&document_offset_bytes);
+
+        // Update collections count
+        collections_count += 1;
+        self.database.mmap[COLLECTIONS_COUNT_OFFSET..COLLECTIONS_COUNT_OFFSET + 4]
+            .copy_from_slice(&collections_count.to_le_bytes());
+
+        println!("Collection '{}' inserted at offset {}", name, new_collection_offset);
+    }
     fn remove_collection(&mut self, name: String) {}
     fn printcollections(&mut self) {}
     fn aggrigate(&mut self) {}
     // ETC. (find, insert...)
 }
 
-fn get_connection(db: &SleipnirDB) -> Connection {
-    Connection::get_connection(&db)
+fn get_connection(db: &mut SleipnirDB) -> Connection {
+    Connection::get_connection(db)
 }
 
 fn main() {
-    let db = SleipnirDB::embedded("store.db").unwrap();
-    let mut con = get_connection(&db);
+    let mut db = SleipnirDB::embedded("store.db").unwrap();
+    let mut con = get_connection(&mut db);
+
+    con.insert_collection("users".to_string());
+    con.insert_collection("orders".to_string());
+    con.insert_collection("products".to_string());
+
     con.printinfo();
 
-    // output:
+    // output
+    // Collection 'users' inserted at offset 16
+    // Collection 'orders' inserted at offset 56
+    // Collection 'products' inserted at offset 96
     // MagicNumber: 344200328
     // Version: '0.0.1'
-    // CollectionsCount: 0
+    // CollectionsCount: 3
+    //  - Collection: 'users' (Document Offset: 0)
+    //  - Collection: 'orders' (Document Offset: 0)
+    //  - Collection: 'products' (Document Offset: 0)
 }
