@@ -3,16 +3,20 @@ name = "sleipnirdb"
 version = "0.0.1"
 edition = "2024"
 description = "SleipnirDB – Bridging Worlds at Lightning Speed."
-authors = ["Leon Farafonov <leofaraf@gmail.com>"]
+authors = ["Leon Farafonov <me@leofaraf.com>"]
 license = "MIT"
 
 [lib]
-name = "sleipnirdb"  # Имя библиотеки
+name = "sleipnirdb"
 path = "src/lib.rs"
 
 [[bin]]
-name = "sleipnirdb_bin"  # Имя бинарного файла
+name = "sleipnirdb_bin"
 path = "src/main.rs"
+
+[workspace]
+resolver = "2"
+members = ["norse"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

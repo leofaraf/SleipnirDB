@@ -200,6 +200,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "norse"
+version = "0.0.1"
+
+[[package]]
 name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

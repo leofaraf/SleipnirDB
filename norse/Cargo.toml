@@ -1,0 +1,9 @@
+[package]
+name = "norse"
+version = "0.0.1"
+edition = "2024"
+description = "Norse – Powerful database CLI."
+authors = ["Leon Farafonov <me@leofaraf.com>"]
+license = "MIT"
+
+[dependencies]
