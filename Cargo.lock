@@ -200,6 +200,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "new"
+version = "0.1.0"
+dependencies = [
+ "memmap2",
+]
+
+[[package]]
 name = "norse"
 version = "0.0.1"
 

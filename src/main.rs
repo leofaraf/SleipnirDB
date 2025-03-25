@@ -171,9 +171,9 @@ fn main() {
     let mut db = SleipnirDB::embedded("store.db").unwrap();
     let mut con = get_connection(&mut db);
 
-    con.insert_collection("users".to_string());
-    con.insert_collection("orders".to_string());
-    con.insert_collection("products".to_string());
+    // con.insert_collection("users".to_string());
+    // con.insert_collection("orders".to_string());
+    // con.insert_collection("products".to_string());
 
     con.printinfo();
 
