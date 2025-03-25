@@ -1,10 +1,11 @@
-use std::{error::Error, fs::{File, OpenOptions}};
+use std::{error::Error, fs::{File, OpenOptions}, os::windows::fs::MetadataExt};
 
-use header::{printinfo, write_database_header};
+use documents::{Document, Documents};
+use header::{Header, HeaderError};
 use memmap2::{MmapMut, MmapOptions};
 
 pub mod header;
-pub mod collections;
+pub mod documents;
 
 pub struct SleipnirDB {
     mmap: MmapMut,
@@ -20,8 +21,7 @@ impl SleipnirDB {
             .create(true)
             .open(path)?;
         let lenght = file.metadata().unwrap().file_size();
-        file.set_len(1000)?;
-        
+
         let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
 
         let mut db = SleipnirDB { 
@@ -29,19 +29,32 @@ impl SleipnirDB {
             file,
             path: path.into(),
         };
-        // init headers
+        
         if lenght == 0 {
-            write_database_header(&mut db);
+            match Header::create(&mut db) {
+                Ok(header) => {
+                    println!("Header created: {:?}", header)
+                },
+                Err(HeaderError::DatabaseError(err)) => println!("DBerr: {}", err),
+                Err(err) => print!("Header parsing error: {:?}", err)
+            };
         } else {
-            get_magic_number(&mut db)?;
+            match Header::parse(&mut db) {
+                Ok(header) => {
+                    println!("Header parsed: {:?}", header)
+                },
+                Err(HeaderError::DatabaseError(err)) => println!("DBerr: {}", err),
+                Err(err) => print!("Header parsing error: {:?}", err)
+            };
         }
+
         Ok(db)
     }
 
     fn ensure_capacity(&mut self, required_size: usize) -> Result<(), Box<dyn Error>> {
-        let current_size = self.file.metadata()?.file_size() as usize;
+        let current_size = self.mmap.len();
         if required_size > current_size {
-            let new_size = (required_size * 2).max(current_size + 1024); // Expand by 2x or at least 1KB
+            let new_size = required_size; // Expand by 2x or at least 1KB
             self.file.set_len(new_size as u64)?; // Resize file
 
             // Remap memory
@@ -78,5 +91,22 @@ fn main() {
     let mut db = SleipnirDB::embedded("store.db").unwrap();
     let con = get_connection(&mut db);
 
-    printinfo(&mut con.database.mmap);
+    let content = "strings".as_bytes().to_vec();
+    let first_doc = Document {
+        primary_key: 1,
+        next_document_offset: 100 + 8 + 8 + 8 + content.len() as u64,
+        content_lenght: content.len() as u64,
+        content: content.clone(),
+    };
+    let second_doc = Document {
+        primary_key: 2,
+        next_document_offset: 0,
+        content_lenght: content.len() as u64,
+        content: content,
+    };
+    Documents::insert_document(&mut db, second_doc, first_doc.next_document_offset as usize).unwrap();
+    Documents::insert_document(&mut db, first_doc, 100).unwrap();
+
+    let docs = Documents::read_all_documents(&db).unwrap();
+    println!("docs: {:?}", docs);
 }
