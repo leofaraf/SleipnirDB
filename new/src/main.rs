@@ -1,9 +1,10 @@
-use std::{error::Error, fs::{File, OpenOptions}, os::windows::fs::MetadataExt};
+use std::{error::Error, fs::{File, OpenOptions}};
 
 use header::{printinfo, write_database_header};
 use memmap2::{MmapMut, MmapOptions};
 
 pub mod header;
+pub mod collections;
 
 pub struct SleipnirDB {
     mmap: MmapMut,
@@ -22,7 +23,7 @@ impl SleipnirDB {
         file.set_len(1000)?;
         
         let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
-        
+
         let mut db = SleipnirDB { 
             mmap,
             file,
