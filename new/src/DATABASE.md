@@ -14,3 +14,5 @@ first entry after header is 'sleipnir-master' (entry to itself)
 second entry is 'sleipnir-reusable' (document that contains information about this collection, e.g.
 first entry offset)
 [id: 1, content: [next_document, collection_name: 'sleipnir-reusable'], next_collection: (offset_to_next_entry)]
+
+// todo: move to pages system

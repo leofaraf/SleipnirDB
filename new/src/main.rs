@@ -1,6 +1,9 @@
+#[cfg(target_pointer_width = "32")]
+compile_error!("This program requires a 64-bit system because file offsets use u64.");
+
 use std::{error::Error, fs::{File, OpenOptions}, os::windows::fs::MetadataExt};
 
-use documents::{Document, Documents};
+use documents::{find::find_last_offset, Document, Documents, RawDocument};
 use header::{Header, HeaderError};
 use memmap2::{MmapMut, MmapOptions};
 
@@ -91,22 +94,21 @@ fn main() {
     let mut db = SleipnirDB::embedded("store.db").unwrap();
     let con = get_connection(&mut db);
 
-    let content = "strings".as_bytes().to_vec();
-    let first_doc = Document {
-        primary_key: 1,
-        next_document_offset: 100 + 8 + 8 + 8 + content.len() as u64,
-        content_lenght: content.len() as u64,
-        content: content.clone(),
-    };
-    let second_doc = Document {
-        primary_key: 2,
-        next_document_offset: 0,
-        content_lenght: content.len() as u64,
-        content: content,
-    };
-    Documents::insert_document(&mut db, second_doc, first_doc.next_document_offset as usize).unwrap();
-    Documents::insert_document(&mut db, first_doc, 100).unwrap();
+    let content = "content".as_bytes().to_vec();
+    for i in 0..100 {
+        Documents::insert_document(
+            &mut db, 
+            Document {
+                primary_key: i,
+                content: content.clone(),
+            },
+            100
+        ).unwrap();
+    }
 
-    let docs = Documents::read_all_documents(&db).unwrap();
+    let docs = Documents::read_all_documents(&mut db).unwrap();
     println!("docs: {:?}", docs);
+
+    let last = find_last_offset(&mut db, 100);
+    println!("last: {}", last);
 }

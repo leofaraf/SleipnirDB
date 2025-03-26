@@ -1,10 +1,14 @@
+use find::find_last_offset;
+
 use crate::SleipnirDB;
 
-const DOCUMENTS_OFFSET: usize = 100;
+pub mod find;
+
+pub const DOCUMENTS_OFFSET: usize = 100;
 const DOCUMENT_PRIMARY_KEY_OFFSET: usize = 0;
 const DOCUMENT_NEXT_DOCUMENT_OFFSET: usize = 8;
 const DOCUMENT_CONTENT_LENGHT_OFFSET: usize = 16;
-const DOCUMENT_CONTENT_OFFSET: usize = 24;
+pub const DOCUMENT_CONTENT_OFFSET: usize = 24;
 
 // like Table
 // Stored as document in master table
@@ -17,25 +21,73 @@ struct Collection {
 
 // Collection entry
 #[derive(Debug)]
-pub struct Document {
+pub struct RawDocument {
     pub primary_key: u64,
-    pub next_document_offset: u64,
+    pub next_document: u64,
     pub content_lenght: u64,
     // json/bson content
     pub content: Vec<u8>,
 }
 
-impl Document {
+impl RawDocument {
     fn len(&self) -> usize {
         self.content.len() + 8 + 8 + 8
     }
+
+    pub fn parse(&self) {
+        
+    }
+
+    pub fn parse_primary_key(db: &mut SleipnirDB, offset: usize) -> u64 {
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(
+            &db.mmap[offset+DOCUMENT_PRIMARY_KEY_OFFSET
+            ..offset+DOCUMENT_NEXT_DOCUMENT_OFFSET]
+        );
+        u64::from_le_bytes(bytes)
+    }
+
+    pub fn parse_next_document(db: &mut SleipnirDB, offset: usize) -> u64 {
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(
+            &db.mmap[offset+DOCUMENT_NEXT_DOCUMENT_OFFSET
+            ..offset+DOCUMENT_CONTENT_LENGHT_OFFSET]
+        );
+        u64::from_le_bytes(bytes)
+    }
+
+    pub fn parse_content_length(db: &mut SleipnirDB, offset: usize) -> u64 {
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(
+            &db.mmap[offset+DOCUMENT_CONTENT_LENGHT_OFFSET
+            ..offset+DOCUMENT_CONTENT_OFFSET]
+        );
+        u64::from_le_bytes(bytes)
+    }
+
+    pub fn parse_content(db: &mut SleipnirDB, offset: usize, content_length: usize) -> Vec<u8> {
+        db.mmap[offset + DOCUMENT_CONTENT_OFFSET
+                ..offset + DOCUMENT_CONTENT_OFFSET + content_length]
+                .to_vec()
+    }
+
+    pub fn write_next_document(db: &mut SleipnirDB, offset: usize, next_offset: usize) {
+        db.mmap[offset+DOCUMENT_NEXT_DOCUMENT_OFFSET
+        ..offset+DOCUMENT_CONTENT_LENGHT_OFFSET]
+        .copy_from_slice(&next_offset.to_le_bytes());
+    }
+}
+
+pub struct Document {
+    pub primary_key: u64,
+    pub content: Vec<u8>,
 }
 
 pub struct Documents {
 }
 
 impl Documents {
-    pub fn read_all_documents(db: &SleipnirDB) -> Result<Vec<Document>, DocumentsError> {
+    pub fn read_all_documents(db: &mut SleipnirDB) -> Result<Vec<RawDocument>, DocumentsError> {
         let mut documents = Vec::new();
         let mut offset = DOCUMENTS_OFFSET;
 
@@ -44,69 +96,69 @@ impl Documents {
                 break;
             }
 
-            let primary_key = u64::from_le_bytes(db.mmap[offset + DOCUMENT_PRIMARY_KEY_OFFSET
-                ..offset + DOCUMENT_NEXT_DOCUMENT_OFFSET]
-                .try_into()
-                .unwrap());
-
-            let next_document_offset = u64::from_le_bytes(db.mmap[offset + DOCUMENT_NEXT_DOCUMENT_OFFSET
-                ..offset + DOCUMENT_CONTENT_LENGHT_OFFSET]
-                .try_into()
-                .unwrap());
-
-            let content_length = u64::from_le_bytes(db.mmap[offset + DOCUMENT_CONTENT_LENGHT_OFFSET
-                ..offset + DOCUMENT_CONTENT_OFFSET]
-                .try_into()
-                .unwrap());
+            let primary_key = RawDocument::parse_primary_key(db, offset);
+            let next_document = RawDocument::parse_next_document(db, offset);
+            let content_length = RawDocument::parse_content_length(db, offset);
 
             if offset + DOCUMENT_CONTENT_OFFSET + content_length as usize > db.mmap.len() {
                 break;
             }
 
-            let content = db.mmap[offset + DOCUMENT_CONTENT_OFFSET
-                ..offset + DOCUMENT_CONTENT_OFFSET + content_length as usize]
-                .to_vec();
+            let content = RawDocument::parse_content(db, offset, content_length as usize);
 
-            documents.push(Document {
+            documents.push(RawDocument {
                 primary_key,
-                next_document_offset,
+                next_document,
                 content_lenght: content_length,
                 content,
             });
 
-            if next_document_offset == 0 {
+            if next_document == 0 {
                 break;
             }
 
-            offset = next_document_offset as usize;
+            offset = next_document as usize;
         }
 
         Ok(documents)
     }
 
-    pub fn insert_document(db: &mut SleipnirDB, document: Document, offset: usize) -> Result<(), DocumentsError> {
-        let document_offset = offset;
-        
+    pub fn insert_raw_document(db: &mut SleipnirDB, document: RawDocument, offset: usize)
+    -> Result<(), DocumentsError> {
         Self::ensure_capacity(
             db,
-            document_offset + document.len()
+            offset + document.len()
         )?;
 
-        db.mmap[document_offset+DOCUMENT_PRIMARY_KEY_OFFSET
-        ..document_offset+DOCUMENT_NEXT_DOCUMENT_OFFSET]
+        db.mmap[offset+DOCUMENT_PRIMARY_KEY_OFFSET
+        ..offset+DOCUMENT_NEXT_DOCUMENT_OFFSET]
         .copy_from_slice(&document.primary_key.to_le_bytes());
 
-        db.mmap[document_offset+DOCUMENT_NEXT_DOCUMENT_OFFSET
-        ..document_offset+DOCUMENT_CONTENT_LENGHT_OFFSET]
-        .copy_from_slice(&document.next_document_offset.to_le_bytes());
+        RawDocument::write_next_document(db, offset, document.next_document as usize);
         
-        db.mmap[document_offset+DOCUMENT_CONTENT_LENGHT_OFFSET
-        ..document_offset+DOCUMENT_CONTENT_OFFSET]
+        db.mmap[offset+DOCUMENT_CONTENT_LENGHT_OFFSET
+        ..offset+DOCUMENT_CONTENT_OFFSET]
         .copy_from_slice(&document.content_lenght.to_le_bytes());
         
-        db.mmap[document_offset+DOCUMENT_CONTENT_OFFSET
-        ..document_offset+DOCUMENT_CONTENT_OFFSET+document.content_lenght as usize]
+        db.mmap[offset+DOCUMENT_CONTENT_OFFSET
+        ..offset+DOCUMENT_CONTENT_OFFSET+document.content_lenght as usize]
         .copy_from_slice(&document.content);
+        
+        Ok(())
+    }
+
+    pub fn insert_document(db: &mut SleipnirDB, document: Document, table_offset: usize)
+    -> Result<(), DocumentsError> {
+        let next_offset = db.mmap.len();
+        let last_offset = find_last_offset(db, table_offset);
+
+        RawDocument::write_next_document(db, last_offset, next_offset);
+        Self::insert_raw_document(db, RawDocument {
+            primary_key: document.primary_key,
+            next_document: 0,
+            content_lenght: document.content.len() as u64,
+            content: document.content,
+        }, next_offset)?;
         
         Ok(())
     }
@@ -123,5 +175,6 @@ impl Documents {
 
 #[derive(Debug)]
 pub enum DocumentsError {
+    PrimaryKeyError(String),
     DatabaseError(String)
 }
